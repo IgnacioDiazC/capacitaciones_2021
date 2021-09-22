@@ -60,8 +60,8 @@ if __name__ == '__main__':
 
     # Parametros para el detector de patos
     # Se debe encontrar el rango apropiado
-    lower_yellow = np.array([204, 204, 0])
-    upper_yellow = np.array([255, 255, 164])
+    lower_yellow = np.array([15, 150, 150])
+    upper_yellow = np.array([40, 255, 255])
     min_area = 2500
 
     while True:
@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
         # Busca contornos de blobs
         # https://docs.opencv.org/trunk/d3/d05/tutorial_py_table_of_contents_contours.html
-        contours, hierarchy = cv2.findContours(mask_out, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(mask_out2, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         # Iterar sobre contornos y dibujar bounding box de los patos
         for cnt in contours:
@@ -125,7 +125,7 @@ if __name__ == '__main__':
         # con los bounding boxes dibujados
         cv2.imshow('patos', cv2.cvtColor(obs, cv2.COLOR_RGB2BGR))
         # Se muestra en una ventana llamada "filtrado" la imagen filtrada
-        cv2.imshow('filtrado', img_out)
+        cv2.imshow('filtrado', cv2.cvtColor(img_out, cv2.COLOR_RGB2BGR))
 
 
     # Se cierra el environment y termina el programa
