@@ -28,11 +28,40 @@ def mov_duckiebot(key):
 
 def det_duckie(obs):
     ### DETECTOR HECHO EN LA MISIÓN ANTERIOR
+    lower_yellow = np.array([15, 150, 150])
+    upper_yellow = np.array([40, 255, 255])
+    min_area = 2500
+    #Transformar imagen a espacio HSV
+    img_out = cv2.cvtColor(obs, cv2.COLOR_RGB2HSV)
+
+    # Filtrar colores de la imagen en el rango utilizando
+    mask = cv2.inRange(img_out, lower_yellow, upper_yellow)
+
+    # Bitwise-AND entre máscara (mask) y original (obs) para visualizar lo filtrado
+    img_out = cv2.bitwise_and(obs, obs, mask = mask)
+
+    # Se define kernel para operaciones morfológicas
+    kernel = np.ones((5,5),np.uint8)
+
+    # Aplicar operaciones morfológicas para eliminar ruido
+    # Esto corresponde a hacer un Opening
+    # https://docs.opencv.org/trunk/d9/d61/tutorial_py_morphological_ops.html
+    #Operacion morfologica erode
+    mask_out = cv2.erode(mask, kernel, iterations = 1)
+        
+    #Operacion morfologica dilate
+    mask_out2 = cv2.dilate(mask_out, kernel, iterations = 1)
+
+    # Busca contornos de blobs
+    # https://docs.opencv.org/trunk/d3/d05/tutorial_py_table_of_contents_contours.html
+    contours, hierarchy = cv2.findContours(mask_out2, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    
+
     dets = list()
 
     for cnt in contours:
-
-        if AREA > min_area:
+        x, y, w, h = cv2.boundingRect(cnt)
+        if w*h > min_area:
             # En lugar de dibujar, se agrega a la lista
             dets.append((x,y,w,h))
 
@@ -48,7 +77,7 @@ def draw_dets(obs, dets):
     return obs
 
 def red_alert(obs):
-    red_img = np.zeros((480, 640, 3), dtype = np.uint8)
+    red_img = np.zeros(obs.shape, dtype = np.uint8)
     red_img[:,:,0] = 255
     blend = cv2.addWeighted(obs, 0.5, red_img, 0.5, 0)
 
@@ -81,7 +110,7 @@ if __name__ == '__main__':
     duck_pos = np.array([2,0,2])
 
     # Constante que se debe calcular
-    C = 1 # f * dr (f es constante, dr es conocido)
+    C = 63.04 # f * 0.08 (f es constante, hr es conocido)
 
     while True:
 
@@ -96,30 +125,30 @@ if __name__ == '__main__':
 
         # Si hay alerta evitar que el Duckiebot avance
         if alert:
-            pass
+            action[0]=np.min([0.0,action[0]])
 
         # Se ejecuta la acción definida anteriormente y se retorna la observación (obs),
         # la evaluación (reward), etc
         obs, reward, done, info = env.step(action)
 
         # Detección de patos, retorna lista de detecciones
-
+        dets = det_duckie(obs)
         # Dibuja las detecciones
-
+        obs = draw_dets(obs, dets)
         # Obtener posición del duckiebot
         dbot_pos = env.cur_pos
         # Calcular distancia real entre posición del duckiebot y pato
         # esta distancia se utiliza para calcular la constante
-        dist = CALCULAR
+        dist = np.sqrt(np.sum((duck_pos-env.cur_pos)**2))
 
         # La alerta se desactiva (opción por defecto)
         alert = False
         
         for d in dets:
             # Alto de la detección en pixeles
-            p = DEFINIR
+            p = d[3]
             # La aproximación se calcula según la fórmula mostrada en la capacitación
-            d_aprox = DEFINIR
+            d_aprox = C/p
 
             # Muestra información relevante
             print('p:', p)
@@ -129,8 +158,9 @@ if __name__ == '__main__':
             # Si la distancia es muy pequeña activa alerta
             if d_aprox < 0.3:
                 # Activar alarma
-
+                alert = True
                 # Muestra ventana en rojo
+                obs = red_alert(obs)
 
         # Se muestra en una ventana llamada "patos" la observación del simulador
         cv2.imshow('patos', cv2.cvtColor(obs, cv2.COLOR_RGB2BGR))
